@@ -30,6 +30,16 @@ It supports BLE Central Role only (most common).
 
 If you need BLE Peripheral Role, you should check out [FlutterBlePeripheral](https://pub.dev/packages/flutter_ble_peripheral), or [bluetooth_low_energy](https://pub.dev/packages/bluetooth_low_energy).
 
+## Sponsored
+
+<p align="left">
+<img width="250px" alt="FlutterBlue" src="https://github.com/boskokg/flutter_blue_plus/blob/master/site/jamcorder.png?raw=true" />
+</p>
+
+FlutterBluePlus is proudly sponsored by [Jamcorder](https://www.jamcorder.com/). 
+
+If you'd like to support continued development of FlutterBluePlus, consider buying one :smiley:.
+
 ## Tutorial
 
 If you are new to Bluetooth, you should start by reading BLE tutorials.
@@ -61,7 +71,7 @@ This makes FlutterBluePlus very stable, and easy to maintain.
 
 ## Other BLE Libraries
 
-These other libraries are worth considering. They support more platforms than FBP, but not to the same quality as FBP.
+These other libraries are worth considering. They support more platforms than FBP, but not to the same quality as FBP and don't support as many BLE features.
 
 - [bluetooth_low_energy](https://pub.dev/packages/bluetooth_low_energy) 
 - [universal_ble](https://pub.dev/packages/universal_ble)
