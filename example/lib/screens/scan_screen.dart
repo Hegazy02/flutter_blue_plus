@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
@@ -78,6 +79,7 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   void onConnectPressed(BluetoothDevice device) {
+    log("onConnectPressed: ${device.platformName}");
     device.connectAndUpdateStream().catchError((e) {
       Snackbar.show(ABC.c, prettyException("Connect Error:", e), success: false);
     });
@@ -119,7 +121,10 @@ class _ScanScreenState extends State<ScanScreen> {
                 settings: RouteSettings(name: '/DeviceScreen'),
               ),
             ),
-            onConnect: () => onConnectPressed(d),
+            onConnect: () {
+              log("ddd");
+              onConnectPressed(d);
+            },
           ),
         )
         .toList();

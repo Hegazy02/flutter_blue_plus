@@ -1,18 +1,22 @@
+// ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'dart:async';
+import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
-import '../widgets/service_tile.dart';
+import '../utils/extra.dart';
+import '../utils/snackbar.dart';
 import '../widgets/characteristic_tile.dart';
 import '../widgets/descriptor_tile.dart';
-import '../utils/snackbar.dart';
-import '../utils/extra.dart';
 
 class DeviceScreen extends StatefulWidget {
   final BluetoothDevice device;
 
-  const DeviceScreen({Key? key, required this.device}) : super(key: key);
+  const DeviceScreen({
+    Key? key,
+    required this.device,
+  }) : super(key: key);
 
   @override
   State<DeviceScreen> createState() => _DeviceScreenState();
@@ -20,7 +24,6 @@ class DeviceScreen extends StatefulWidget {
 
 class _DeviceScreenState extends State<DeviceScreen> {
   int? _rssi;
-  int? _mtuSize;
   BluetoothConnectionState _connectionState = BluetoothConnectionState.disconnected;
   List<BluetoothService> _services = [];
   bool _isDiscoveringServices = false;
@@ -30,7 +33,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
   late StreamSubscription<BluetoothConnectionState> _connectionStateSubscription;
   late StreamSubscription<bool> _isConnectingSubscription;
   late StreamSubscription<bool> _isDisconnectingSubscription;
-  late StreamSubscription<int> _mtuSubscription;
+  List<String> notifiableData = [];
 
   @override
   void initState() {
@@ -49,13 +52,6 @@ class _DeviceScreenState extends State<DeviceScreen> {
       }
     });
 
-    _mtuSubscription = widget.device.mtu.listen((value) {
-      _mtuSize = value;
-      if (mounted) {
-        setState(() {});
-      }
-    });
-
     _isConnectingSubscription = widget.device.isConnecting.listen((value) {
       _isConnecting = value;
       if (mounted) {
@@ -69,12 +65,12 @@ class _DeviceScreenState extends State<DeviceScreen> {
         setState(() {});
       }
     });
+    getNotifiableData();
   }
 
   @override
   void dispose() {
     _connectionStateSubscription.cancel();
-    _mtuSubscription.cancel();
     _isConnectingSubscription.cancel();
     _isDisconnectingSubscription.cancel();
     super.dispose();
@@ -143,16 +139,54 @@ class _DeviceScreenState extends State<DeviceScreen> {
     }
   }
 
-  List<Widget> _buildServiceTiles(BuildContext context, BluetoothDevice d) {
-    return _services
-        .map(
-          (s) => ServiceTile(
-            service: s,
-            characteristicTiles: s.characteristics.map((c) => _buildCharacteristicTile(c)).toList(),
-          ),
-        )
-        .toList();
+  Future<List<String>> getReadableData() async {
+    List<String> data = [];
+
+    for (var s in _services) {
+      var characteristics = s.characteristics;
+      for (BluetoothCharacteristic c in characteristics) {
+        if (c.properties.read) {
+          try {
+            List<int> value = await c.read();
+            data.add(String.fromCharCodes(value));
+            log("my value ${String.fromCharCodes(value)}");
+          } catch (e) {
+            print("error ${e}");
+          }
+        }
+      }
+    }
+    return data;
   }
+
+  getNotifiableData() async {
+    for (var s in _services) {
+      var characteristics = s.characteristics;
+      for (BluetoothCharacteristic c in characteristics) {
+        if (c.properties.notify) {
+          c.setNotifyValue(true);
+          c.lastValueStream.listen((value) {
+            notifiableData.add(String.fromCharCodes(value));
+            log("my value ${String.fromCharCodes(value)}");
+            setState(() {});
+          });
+        }
+      }
+    }
+  }
+
+  // List<Widget> _buildServiceTiles(BuildContext context, BluetoothDevice d) {
+  //   return data.map((d) => Text("my value: ${String.fromCharCodes(d)}")).toList();
+
+  //   // return _services
+  //   //     .map(
+  //   //       (s) => ServiceTile(
+  //   //         service: s,
+  //   //         characteristicTiles: s.characteristics.map((c) => _buildCharacteristicTile(c)).toList(),
+  //   //       ),
+  //   //     )
+  //   //     .toList();
+  // }
 
   CharacteristicTile _buildCharacteristicTile(BluetoothCharacteristic c) {
     return CharacteristicTile(
@@ -162,8 +196,8 @@ class _DeviceScreenState extends State<DeviceScreen> {
   }
 
   Widget buildSpinner(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(14.0),
+    return const Padding(
+      padding: EdgeInsets.all(14.0),
       child: AspectRatio(
         aspectRatio: 1.0,
         child: CircularProgressIndicator(
@@ -196,31 +230,21 @@ class _DeviceScreenState extends State<DeviceScreen> {
       index: (_isDiscoveringServices) ? 1 : 0,
       children: <Widget>[
         TextButton(
-          child: const Text("Get Services"),
           onPressed: onDiscoverServicesPressed,
+          child: const Text("Get Services"),
         ),
         const IconButton(
           icon: SizedBox(
+            width: 18.0,
+            height: 18.0,
             child: CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation(Colors.grey),
             ),
-            width: 18.0,
-            height: 18.0,
           ),
           onPressed: null,
         )
       ],
     );
-  }
-
-  Widget buildMtuTile(BuildContext context) {
-    return ListTile(
-        title: const Text('MTU Size'),
-        subtitle: Text('$_mtuSize bytes'),
-        trailing: IconButton(
-          icon: const Icon(Icons.edit),
-          onPressed: onRequestMtuPressed,
-        ));
   }
 
   Widget buildConnectButton(BuildContext context) {
@@ -253,8 +277,25 @@ class _DeviceScreenState extends State<DeviceScreen> {
                 title: Text('Device is ${_connectionState.toString().split('.')[1]}.'),
                 trailing: buildGetServices(context),
               ),
-              buildMtuTile(context),
-              ..._buildServiceTiles(context, widget.device),
+              FutureBuilder(
+                future: getReadableData(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData) {
+                    List data = snapshot.data as List;
+                    return ListView.builder(
+                      physics: const NeverScrollableScrollPhysics(),
+                      shrinkWrap: true,
+                      itemCount: data.length,
+                      itemBuilder: (context, index) {
+                        return Text(data[index]);
+                      },
+                    );
+                  } else {
+                    return const Text("No data");
+                  }
+                },
+              ),
+              Text("Notifiable Data: $notifiableData"),
             ],
           ),
         ),

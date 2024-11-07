@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:math';
+import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
@@ -28,6 +28,7 @@ class _CharacteristicTileState extends State<CharacteristicTile> {
     super.initState();
     _lastValueSubscription = widget.characteristic.lastValueStream.listen((value) {
       _value = value;
+      log("vvv ${String.fromCharCodes(value)}");
       if (mounted) {
         setState(() {});
       }
@@ -42,15 +43,16 @@ class _CharacteristicTileState extends State<CharacteristicTile> {
 
   BluetoothCharacteristic get c => widget.characteristic;
 
-  List<int> _getRandomBytes() {
-    final math = Random();
-    return [math.nextInt(255), math.nextInt(255), math.nextInt(255), math.nextInt(255)];
-  }
+  // List<int> _getRandomBytes() {
+  //   final math = Random();
+  //   return [math.nextInt(255), math.nextInt(255), math.nextInt(255), math.nextInt(255)];
+  // }
 
   Future onReadPressed() async {
     try {
-      await c.read();
-      Snackbar.show(ABC.c, "Read: Success", success: true);
+      List data = await c.read();
+      Snackbar.show(ABC.c, "data: ${String.fromCharCodes(Iterable<int>.generate(data.length, (i) => data[i]))}",
+          success: true);
     } catch (e) {
       Snackbar.show(ABC.c, prettyException("Read Error:", e), success: false);
     }
@@ -58,10 +60,10 @@ class _CharacteristicTileState extends State<CharacteristicTile> {
 
   Future onWritePressed() async {
     try {
-      await c.write(_getRandomBytes(), withoutResponse: c.properties.writeWithoutResponse);
+      await c.write([0x01], withoutResponse: c.properties.writeWithoutResponse);
       Snackbar.show(ABC.c, "Write: Success", success: true);
       if (c.properties.read) {
-        await c.read();
+        List data = await c.read();
       }
     } catch (e) {
       Snackbar.show(ABC.c, prettyException("Write Error:", e), success: false);
